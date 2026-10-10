@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ad-Free YouTube Transcript Extractor | Pro v2.0</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6 lg:p-8">
+
+    <!-- Header / Navbar -->
+    <header class="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-700/60">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white font-bold text-xl">
+                ▶
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight">Transcript<span class="text-indigo-400">Pure</span></h1>
+                <p class="text-xs text-slate-400 font-medium">Smart Ad-Free YouTube Extraction Engine</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="/docs" target="_blank" class="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-800/90 text-indigo-300 border border-indigo-500/30 hover:bg-slate-700 transition flex items-center space-x-1.5 shadow-sm">
+                <span>⚡ API Docs</span>
+            </a>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                ● Live v2.0
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-3xl w-full mx-auto my-8">
+        <div class="glass-card rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/20 space-y-6">
+            
+            <!-- Headline -->
+            <div class="text-center space-y-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                    🛡️ AI-Ready • Zero Sponsor Noise • 100% Exact Text
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Extract Clean Video Transcripts
+                </h2>
+                <p class="text-slate-600 text-sm max-w-lg mx-auto">
+                    Automatically retrieves YouTube captions and removes all sponsored reads, channel promos, and "like & subscribe" pitches.
+                </p>
+            </div>
+
+            <!-- Input Form -->
+            <div class="space-y-4 pt-2">
+                <div>
+                    <label for="url" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                        YouTube Video URL or Video ID
+                    </label>
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="url" 
+                            placeholder="https://www.youtube.com/watch?v=... or youtu.be/..." 
+                            class="w-full px-4 py-3.5 pr-12 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition font-medium"
+                        />
+                        <button onclick="clearInput()" id="clearBtn" title="Clear input" class="hidden absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-1">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <button 
+                    onclick="extractTranscript()" 
+                    id="submitBtn"
+                    class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-500/25 transition duration-200 flex items-center justify-center space-x-2 text-sm"
+                >
+                    <span id="btnIcon">⚡</span>
+                    <span id="btnText">Extract Clean Transcript</span>
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading" class="hidden text-center py-8 space-y-3">
+                <div class="inline-block animate-spin rounded-full h-9 w-9 border-4 border-indigo-600 border-t-transparent"></div>
+                <div class="space-y-1">
+                    <p class="text-slate-800 font-semibold text-sm">Processing Video Streams...</p>
+                    <p class="text-slate-500 text-xs">Fetching captions.......</p>
+                </div>
+            </div>
+
+            <!-- Error Box -->
+            <div id="errorBox" class="hidden bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl text-sm flex items-start space-x-3">
+                <span class="text-rose-500 text-base font-bold">⚠️</span>
+                <div id="errorMessage" class="flex-1 font-medium"></div>
+            </div>
+
+            <!-- Result Section -->
+            <div id="resultContainer" class="hidden space-y-4 pt-2">
+                
+                <!-- Metrics / Summary Cards -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-indigo-50/70 border border-indigo-100 p-3 rounded-xl text-center">
+                        <span class="text-xs text-indigo-600 font-medium uppercase tracking-wider block">Word Count</span>
+                        <span id="statWords" class="text-lg font-bold text-indigo-950">0</span>
+                    </div>
+                    <div class="bg-emerald-50/70 border border-emerald-100 p-3 rounded-xl text-center">
+                        <span class="text-xs text-emerald-600 font-medium uppercase tracking-wider block">Sponsors Cut</span>
+                        <span id="statSegments" class="text-lg font-bold text-emerald-950">0</span>
+                    </div>
+                    <div class="bg-slate-100 border border-slate-200 p-3 rounded-xl text-center">
+                        <span class="text-xs text-slate-500 font-medium uppercase tracking-wider block">Token Saving</span>
+                        <span id="statSavings" class="text-lg font-bold text-slate-800">~20%</span>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="flex items-center justify-between pt-1">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Clean Output</h3>
+                    <div class="flex items-center space-x-2">
+                        <button 
+                            onclick="downloadText()" 
+                            class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition font-semibold border border-slate-300"
+                        >
+                            ⬇ Download .txt
+                        </button>
+                        <button 
+                            onclick="copyText()" 
+                            id="copyBtn" 
+                            class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg transition font-semibold shadow-sm"
+                        >
+                            📋 Copy Text
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Text Area -->
+                <textarea 
+                    id="cleanText" 
+                    readonly 
+                    class="w-full h-72 p-4 border border-slate-200 rounded-xl bg-slate-50 text-slate-800 text-sm font-mono leading-relaxed focus:outline-none resize-y shadow-inner"
+                ></textarea>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Developer Attribution & Footer -->
+    <footer class="max-w-4xl w-full mx-auto pt-6 border-t border-slate-800 text-center space-y-2">
+        <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
+            <span class="font-semibold text-slate-300">Project v2.0</span>
+            <span>•</span>
+            <span>Built for Executive & Operations Intelligence</span>
+            <span>•</span>
+            <span class="text-indigo-400 font-medium">Operational</span>
+        </div>
+        <p class="text-[11px] text-slate-500">
+            Designed and Developed By RKSBL
+        </p>
+    </footer>
+
+    <!-- Logic Script -->
+    <script>
+        const urlInput = document.getElementById('url');
+        const clearBtn = document.getElementById('clearBtn');
+
+        urlInput.addEventListener('input', () => {
+            clearBtn.classList.toggle('hidden', !urlInput.value.trim());
+        });
+
+        function clearInput() {
+            urlInput.value = '';
+            clearBtn.classList.add('hidden');
+            urlInput.focus();
+        }
+
+        async function extractTranscript() {
+            const url = urlInput.value.trim();
+            const loading = document.getElementById('loading');
+            const errorBox = document.getElementById('errorBox');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultContainer = document.getElementById('resultContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+
+            if (!url) {
+                errorMessage.textContent = "Please enter a valid YouTube video URL or ID.";
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            // Reset UI states
+            errorBox.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            loading.classList.remove('hidden');
+            submitBtn.disabled = true;
+            btnText.textContent = "Extracting...";
+            btnIcon.textContent = "⏳";
+
+            try {
+                const response = await fetch('/extract/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || "Unable to retrieve clean transcript.");
+                }
+
+                // Populate text & stats
+                document.getElementById('cleanText').value = data.clean_text;
+                document.getElementById('statWords').textContent = Number(data.word_count || 0).toLocaleString();
+                document.getElementById('statSegments').textContent = data.segments_removed || 0;
+                
+                // Estimate token savings
+                const segmentsCount = data.segments_removed || 0;
+                const savingsEstimate = segmentsCount > 0 ? `~${Math.min(segmentsCount * 8, 35)}%` : '0%';
+                document.getElementById('statSavings').textContent = savingsEstimate;
+
+                resultContainer.classList.remove('hidden');
+            } catch (err) {
+                errorMessage.textContent = err.message;
+                errorBox.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+                submitBtn.disabled = false;
+                btnText.textContent = "Extract Clean Transcript";
+                btnIcon.textContent = "⚡";
+            }
+        }
+
+        function copyText() {
+            const textarea = document.getElementById('cleanText');
+            textarea.select();
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = "✓ Copied!";
+                copyBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+                }, 2000);
+            });
+        }
+
+        function downloadText() {
+            const text = document.getElementById('cleanText').value;
+            if (!text) return;
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `transcript_clean_${Date.now()}.txt`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+    </script>
+</body>
+</html>
