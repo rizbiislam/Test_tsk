@@ -1,14 +1,5 @@
-"""
-=============================================================================
-Project:     Ad-Free YouTube Transcript Extractor (Pro v2.0)
-Architecture: Decoupled FastAPI Backend + Standalone Responsive Web Client
-Author:      AI & Data Engineering
-Description:
-    Microservice providing automated YouTube transcript extraction with
-    second-precision sponsor, promo, and interaction removal via SponsorBlock.
-=============================================================================
-"""
-
+""""
+==============================================
 import os
 import re
 import requests
@@ -17,17 +8,12 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel, Field
 from youtube_transcript_api import YouTubeTranscriptApi
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML_PATH = os.path.join(BASE_DIR, "index.html")
 
 # Initialize FastAPI with Developer Metadata
-app = FastAPI(
+app = FtAP(
     title="Ad-Free YouTube Transcript Extractor",
-    description="Pipeline of automated sponsor segment elimination.",
-    version="2.0.0",
-    contact={
-        "name": "Operations & Data Engineering Team RKSBL",
-        "url": "http://127.0.0.1:8000/docs",
+    
     }
 )
 
@@ -38,11 +24,11 @@ class VideoRequest(BaseModel):
 
 def extract_video_id(url_or_id: str) -> str:
     """
-    Extracts the unique 11-character YouTube video ID from diverse URL formats
-    (standard watch URLs, Shorts, embeds, shortened youtu.be, or raw IDs).
+    Extracts the unique 11-chara
+    (standard watch URLs, Shorts, embeds, shortened youtu.be, or).
     """
     patterns = [
-        r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+        r'(?*',
         r'(?:embed\/)([0-9A-Za-z_-]{11})',
         r'(?:watch\?v=)([0-9A-Za-z_-]{11})',
         r'^([0-9A-Za-z_-]{11})$'
@@ -66,7 +52,7 @@ def serve_frontend():
 def extract_text(payload: VideoRequest):
     # 1. Parse video ID
     try:
-        video_id = extract_video_id(payload.url.strip())
+        video_id = extract_video_id(payl)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
         
@@ -84,8 +70,6 @@ def extract_text(payload: VideoRequest):
         
     # 3. Query SponsorBlock for skip intervals
     sb_url = f"https://sponsor.ajay.app/api/skipSegments?videoID={video_id}&categories=[\"sponsor\",\"selfpromo\",\"interaction\"]"
-    try:
-        response = requests.get(sb_url, timeout=5)
         skip_segments = [seg['segment'] for seg in response.json()] if response.status_code == 200 else []
     except Exception:
         skip_segments = []
