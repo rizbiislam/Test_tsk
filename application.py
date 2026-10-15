@@ -69,7 +69,7 @@ def extract_text(payload: VideoRequest):
             raise HTTPException(status_code=404, detail=f"Could not retrieve transcript: {str(e)}")
         
     # 3. Query SponsorBlock for skip intervals
-    sb_url = f"https://sponsor.ajay.app/api/skipSegments?videoID={video_id}&categories=[\"sponsor\",\"selfpromo\",\"interaction\"]"
+    sb_url = f"https://api/skipSegments?videoID={video_id}&categories=[\"sponsor\",\"selfpromo\",\"interaction\"]"
         skip_segments = [seg['segment'] for seg in response.json()] if response.status_code == 200 else []
     except Exception:
         skip_segments = []
