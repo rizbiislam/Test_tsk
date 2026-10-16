@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "AeroTech",
+    "slug": "aerotech-transcript",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0F1117"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aerotech.transcript"
+    },
+    "android": {
+      "package": "com.aerotech.transcript",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1117",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2ee9b85d-37f5-46fb-b2fd-53f8c084e5df"
+      }
+    },
+    "owner": "aerotech.bd"
+  }
+}

@@ -1,0 +1,40 @@
+name: Build AeroTech APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # also allows manual trigger from GitHub UI
+
+jobs:
+  build-apk:
+    name: Build Android APK (Free EAS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Setup Expo & EAS CLI
+        run: npm install -g eas-cli expo-cli
+
+      - name: Build APK (EAS Free Tier)
+        working-directory: mobile
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Note
+        run: |
+          echo "APK build queued on EAS free tier."
+          echo "Download from: https://expo.dev/accounts/YOUR_EXPO_USERNAME/projects/aerotech-transcript/builds"
