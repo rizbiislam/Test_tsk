@@ -30,15 +30,14 @@
       }
     },
     "plugins": [
+      "./plugins/with-abi-filter",
       [
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraGradleProperties": {
-              "reactNativeArchitectures": "arm64-v8a,armeabi-v7a"
-            }
+            "enablePngCrunchInReleaseBuilds": true
           }
         }
       ]

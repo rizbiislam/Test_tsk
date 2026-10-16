@@ -130,19 +130,40 @@ export function decodeIfBase64(val?: any): string {
 }
 
 /**
- * Parses raw remote text whether it's plain JSON or a 100% Base64-encoded blob.
+ * Cleans comments (C-style block comments /* ... *\/ and line comments // ...)
+ * and handles quotes or surrounding markdown before parsing.
  */
-export function parseRemoteConfigText(rawText: string): AppConfig {
-  let jsonString = rawText.trim();
+function cleanRawConfigString(raw: string): string {
+  let text = (raw || '').trim();
+  // Strip block comments /* ... */
+  text = text.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Strip line comments // ...
+  text = text.replace(/\/\/.*$/gm, '');
+  text = text.trim();
 
-  // 1. If wrapped in JSON quotes: "eyJ..."
-  if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
-    jsonString = jsonString.slice(1, -1).trim();
+  // If wrapped in quotes: "..."
+  if (text.startsWith('"') && text.endsWith('"')) {
+    text = text.slice(1, -1).trim();
   }
 
-  // 2. If not starting with '{', it's a full Base64 encoded payload
+  // If contains JSON object { ... }, extract the outermost { ... }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
+  }
+  return text;
+}
+
+/**
+ * Parses raw remote text whether it's plain JSON, comment-annotated JSON, or a 100% Base64-encoded blob.
+ */
+export function parseRemoteConfigText(rawText: string): AppConfig {
+  let jsonString = cleanRawConfigString(rawText);
+
+  // If not starting with '{', it's a full Base64 encoded payload
   if (!jsonString.startsWith('{')) {
-    jsonString = decodeBase64(jsonString);
+    jsonString = cleanRawConfigString(decodeBase64(jsonString));
   }
 
   let remote: any = {};
@@ -150,18 +171,18 @@ export function parseRemoteConfigText(rawText: string): AppConfig {
     remote = JSON.parse(jsonString);
   } catch {
     try {
-      remote = JSON.parse(decodeBase64(jsonString));
+      remote = JSON.parse(cleanRawConfigString(decodeBase64(jsonString)));
     } catch {
       return DEFAULT_CONFIG;
     }
   }
 
-  // 3. If wrapped in a JSON envelope: { "payload": "eyJ..." } or { "data": "eyJ..." }
+  // If wrapped in a JSON envelope: { "payload": "eyJ..." } or { "data": "eyJ..." }
   if (remote && typeof remote === 'object' && !remote.engine_active && !remote.is_app_enabled) {
     const innerB64 = remote.payload || remote.data || remote.config;
     if (typeof innerB64 === 'string') {
       try {
-        remote = JSON.parse(decodeBase64(innerB64));
+        remote = JSON.parse(cleanRawConfigString(decodeBase64(innerB64)));
       } catch {}
     }
   }
