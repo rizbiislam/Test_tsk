@@ -135,13 +135,38 @@ export function decodeIfBase64(val?: any): string {
 export function parseRemoteConfigText(rawText: string): AppConfig {
   let jsonString = rawText.trim();
 
-  // If not starting with '{', it's a full Base64 encoded payload
+  // 1. If wrapped in JSON quotes: "eyJ..."
+  if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
+    jsonString = jsonString.slice(1, -1).trim();
+  }
+
+  // 2. If not starting with '{', it's a full Base64 encoded payload
   if (!jsonString.startsWith('{')) {
     jsonString = decodeBase64(jsonString);
   }
 
-  const remote = JSON.parse(jsonString);
-  const remoteFeatures = remote.features || {};
+  let remote: any = {};
+  try {
+    remote = JSON.parse(jsonString);
+  } catch {
+    try {
+      remote = JSON.parse(decodeBase64(jsonString));
+    } catch {
+      return DEFAULT_CONFIG;
+    }
+  }
+
+  // 3. If wrapped in a JSON envelope: { "payload": "eyJ..." } or { "data": "eyJ..." }
+  if (remote && typeof remote === 'object' && !remote.engine_active && !remote.is_app_enabled) {
+    const innerB64 = remote.payload || remote.data || remote.config;
+    if (typeof innerB64 === 'string') {
+      try {
+        remote = JSON.parse(decodeBase64(innerB64));
+      } catch {}
+    }
+  }
+
+  const remoteFeatures = remote?.features || {};
 
   // Support both disguised/obfuscated keyword names AND legacy keyword names
   const merged: AppConfig = {
