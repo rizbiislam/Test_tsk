@@ -29,6 +29,20 @@
         "projectId": "2ee9b85d-37f5-46fb-b2fd-53f8c084e5df"
       }
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraGradleProperties": {
+              "reactNativeArchitectures": "arm64-v8a,armeabi-v7a"
+            }
+          }
+        }
+      ]
+    ],
     "owner": "aerotech.bd"
   }
 }
