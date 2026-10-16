@@ -1,13 +1,10 @@
 /**
- * AeroTech — Gate Screen
+ * Meeting Timeline — Gate Screen
  *
- * Shown on app launch when the remote config signals:
+ * Shown on app launch when remote config signals:
  *   - App is disabled (is_app_enabled: false)
  *   - Maintenance mode (maintenance_mode: true)
  *   - Force update required (force_update: true)
- *
- * The API URL, GitHub link, and all backend details are
- * NEVER shown to the user in any of these screens.
  */
 
 import React from 'react';
@@ -19,7 +16,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { AppConfig } from '../services/configService';
-import { COLORS, FONTS } from '../theme';
+import { useTheme, FONTS } from '../theme';
 
 interface GateScreenProps {
   config: AppConfig;
@@ -42,23 +39,24 @@ const GATE_CONTENT: Record<
   disabled: {
     emoji: '🔒',
     title: 'App Unavailable',
-    defaultMessage: 'This app is currently unavailable. Please try again later.',
+    defaultMessage: 'This service is currently unavailable. Please check back later.',
   },
   maintenance: {
     emoji: '🛠️',
-    title: 'Under Maintenance',
-    defaultMessage: 'We are performing maintenance. We will be back shortly.',
-    action: 'Check Again',
+    title: 'System Optimization',
+    defaultMessage: 'We are performing routine service optimizations. Normal operations will resume shortly.',
+    action: 'Refresh Status',
   },
   force_update: {
     emoji: '⬆️',
     title: 'Update Required',
-    defaultMessage: 'A new version is required to continue. Please update the app.',
-    action: 'Update Now',
+    defaultMessage: 'A newer release of Meeting Timeline is required to continue.',
+    action: 'Update App',
   },
 };
 
 export default function GateScreen({ config, onRetry }: GateScreenProps) {
+  const { colors } = useTheme();
   const reason = getGateReason(config) ?? 'disabled';
   const content = GATE_CONTENT[reason];
 
@@ -70,20 +68,34 @@ export default function GateScreen({ config, onRetry }: GateScreenProps) {
       : content.defaultMessage;
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.card}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surfaceCard,
+            borderColor: colors.border,
+          },
+        ]}
+      >
         <Text style={styles.emoji}>{content.emoji}</Text>
-        <Text style={styles.title}>{content.title}</Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{content.title}</Text>
+        <Text style={[styles.message, { color: colors.muted }]}>{message}</Text>
 
         {content.action && (
-          <TouchableOpacity style={styles.btn} onPress={onRetry} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.accent }]}
+            onPress={onRetry}
+            activeOpacity={0.85}
+          >
             <Text style={styles.btnText}>{content.action}</Text>
           </TouchableOpacity>
         )}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Meeting Timeline • Engineered by AeroTech</Text>
+          <Text style={[styles.footerText, { color: colors.muted }]}>
+            Meeting Timeline • Engineered by AeroTech
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -93,20 +105,19 @@ export default function GateScreen({ config, onRetry }: GateScreenProps) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: COLORS.surface,
     borderRadius: 20,
+    borderWidth: 1,
     padding: 36,
     alignItems: 'center',
     width: '100%',
     maxWidth: 400,
     shadowColor: '#000',
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 8,
   },
@@ -114,20 +125,17 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONTS.bold,
     fontSize: 22,
-    color: COLORS.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontFamily: FONTS.regular,
-    fontSize: 15,
-    color: COLORS.muted,
+    fontSize: 14.5,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
   },
   btn: {
-    backgroundColor: COLORS.accent,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 36,
@@ -135,14 +143,13 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontFamily: FONTS.bold,
-    fontSize: 16,
+    fontSize: 15,
     color: '#fff',
   },
   footer: { marginTop: 24 },
   footerText: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.muted,
-    opacity: 0.5,
+    fontSize: 11.5,
+    opacity: 0.7,
   },
 });

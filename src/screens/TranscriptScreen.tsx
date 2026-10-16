@@ -8,6 +8,7 @@
  * Presentation Features:
  *  - Dynamic safe insets (fixes Android status-bar/notch overflow)
  *  - Presentation Barrier (bounded card viewport that keeps text contained for presentations)
+ *  - Dynamic Light & Dark theme toggle
  *  - 1-Click Executive PDF Report generation with clean short filenames
  *  - Universal Share & Copy controls
  *  - Discreet, professional AeroTech developer footprint
@@ -18,7 +19,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Share,
@@ -31,7 +31,7 @@ import { FormattedTranscript, QABlock } from '../services/formatter';
 import { TranscriptResult } from '../services/apiService';
 import { AppConfig } from '../services/configService';
 import { exportReportAsPdf } from '../services/pdfService';
-import { COLORS, FONTS } from '../theme';
+import { useTheme, FONTS } from '../theme';
 
 const STATUSBAR_INSET = Platform.OS === 'android' ? (NativeStatusBar.currentHeight || 28) : 0;
 
@@ -64,6 +64,7 @@ export default function TranscriptScreen({
   config,
   onBack,
 }: TranscriptScreenProps) {
+  const { colors, isDark, toggleTheme } = useTheme();
   const [viewMode, setViewMode] = useState<'qa' | 'paragraphs'>('qa');
   const [copied, setCopied] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -105,31 +106,64 @@ export default function TranscriptScreen({
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.bg }]}>
       {/* Top sticky navigation bar with notch-safe insets */}
-      <View style={styles.topBar}>
+      <View
+        style={[
+          styles.topBar,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.75}>
-          <Text style={styles.backIcon}>‹</Text>
-          <Text style={styles.backText}>New</Text>
+          <Text style={[styles.backIcon, { color: colors.accent }]}>‹</Text>
+          <Text style={[styles.backText, { color: colors.accent }]}>New</Text>
         </TouchableOpacity>
 
         <View style={styles.logoRow}>
-          <View style={styles.logoPulse} />
-          <Text style={styles.logoTitle}>Meeting Timeline</Text>
+          <View style={[styles.logoPulse, { backgroundColor: colors.accent }]} />
+          <Text style={[styles.logoTitle, { color: colors.text }]}>Meeting Timeline</Text>
         </View>
 
-        <TouchableOpacity
-          onPress={handleExportPdf}
-          style={styles.pdfQuickBtn}
-          activeOpacity={0.8}
-          disabled={exportingPdf}
-        >
-          {exportingPdf ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.pdfQuickBtnText}>PDF</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.topRightActions}>
+          {/* Theme Toggle Button */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={[
+              styles.themeToggleBtn,
+              {
+                backgroundColor: colors.surfaceSubtle,
+                borderColor: colors.border,
+              },
+            ]}
+            activeOpacity={0.8}
+            accessibilityLabel="Switch color theme"
+          >
+            <Text style={styles.themeToggleIcon}>{isDark ? '☀️' : '🌙'}</Text>
+          </TouchableOpacity>
+
+          {/* Quick PDF export button */}
+          <TouchableOpacity
+            onPress={handleExportPdf}
+            style={[
+              styles.pdfQuickBtn,
+              {
+                backgroundColor: colors.surfaceSubtle,
+                borderColor: colors.borderSubtle,
+              },
+            ]}
+            activeOpacity={0.8}
+            disabled={exportingPdf}
+          >
+            {exportingPdf ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : (
+              <Text style={[styles.pdfQuickBtnText, { color: colors.accent }]}>PDF</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -137,49 +171,70 @@ export default function TranscriptScreen({
         showsVerticalScrollIndicator={false}
       >
         {/* Presentation Header & Key Indicators */}
-        <View style={styles.statsBar}>
+        <View
+          style={[
+            styles.statsBar,
+            {
+              backgroundColor: colors.surfaceCard,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{formatted.wordCount.toLocaleString()}</Text>
-            <Text style={styles.statSubtitle}>Words</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {formatted.wordCount.toLocaleString()}
+            </Text>
+            <Text style={[styles.statSubtitle, { color: colors.muted }]}>Words</Text>
           </View>
-          <View style={styles.statSeparator} />
+          <View style={[styles.statSeparator, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: COLORS.accent }]}>
+            <Text style={[styles.statNumber, { color: colors.accent }]}>
               {formatted.readTimeMinutes} min
             </Text>
-            <Text style={styles.statSubtitle}>Est. Time</Text>
+            <Text style={[styles.statSubtitle, { color: colors.muted }]}>Est. Time</Text>
           </View>
-          <View style={styles.statSeparator} />
+          <View style={[styles.statSeparator, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#38BDF8' }]}>
+            <Text style={[styles.statNumber, { color: '#0EA5E9' }]}>
               {formatted.questionCount}
             </Text>
-            <Text style={styles.statSubtitle}>Questions</Text>
+            <Text style={[styles.statSubtitle, { color: colors.muted }]}>Questions</Text>
           </View>
           {raw.segments_removed > 0 && (
             <>
-              <View style={styles.statSeparator} />
+              <View style={[styles.statSeparator, { backgroundColor: colors.border }]} />
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: COLORS.success }]}>
+                <Text style={[styles.statNumber, { color: colors.success }]}>
                   {raw.segments_removed}
                 </Text>
-                <Text style={styles.statSubtitle}>Filtered</Text>
+                <Text style={[styles.statSubtitle, { color: colors.muted }]}>Filtered</Text>
               </View>
             </>
           )}
         </View>
 
         {/* Presentation Mode Selector */}
-        <View style={styles.modeContainer}>
+        <View
+          style={[
+            styles.modeContainer,
+            {
+              backgroundColor: colors.surfaceSubtle,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
-            style={[styles.modeButton, viewMode === 'qa' && styles.modeButtonActive]}
+            style={[
+              styles.modeButton,
+              viewMode === 'qa' && [styles.modeButtonActive, { backgroundColor: colors.accent }],
+            ]}
             onPress={() => setViewMode('qa')}
             activeOpacity={0.85}
           >
             <Text
               style={[
                 styles.modeButtonText,
-                viewMode === 'qa' && styles.modeButtonTextActive,
+                { color: viewMode === 'qa' ? '#FFFFFF' : colors.muted },
               ]}
             >
               💬 Q&A Breakdown
@@ -189,7 +244,10 @@ export default function TranscriptScreen({
           <TouchableOpacity
             style={[
               styles.modeButton,
-              viewMode === 'paragraphs' && styles.modeButtonActive,
+              viewMode === 'paragraphs' && [
+                styles.modeButtonActive,
+                { backgroundColor: colors.accent },
+              ],
             ]}
             onPress={() => setViewMode('paragraphs')}
             activeOpacity={0.85}
@@ -197,7 +255,7 @@ export default function TranscriptScreen({
             <Text
               style={[
                 styles.modeButtonText,
-                viewMode === 'paragraphs' && styles.modeButtonTextActive,
+                { color: viewMode === 'paragraphs' ? '#FFFFFF' : colors.muted },
               ]}
             >
               📑 Executive Summary
@@ -206,14 +264,22 @@ export default function TranscriptScreen({
         </View>
 
         {/* Presentation Viewport / Structured Container */}
-        <View style={styles.presentationCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderBadge}>
-              <Text style={styles.cardHeaderBadgeText}>
+        <View
+          style={[
+            styles.presentationCard,
+            {
+              backgroundColor: colors.surfaceCard,
+              borderColor: colors.borderSubtle,
+            },
+          ]}
+        >
+          <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
+            <View style={[styles.cardHeaderBadge, { backgroundColor: colors.accentSoft }]}>
+              <Text style={[styles.cardHeaderBadgeText, { color: colors.accent }]}>
                 {viewMode === 'qa' ? 'DIALOGUE FLOW' : 'EXECUTIVE SUMMARY'}
               </Text>
             </View>
-            <Text style={styles.cardSubtitle}>
+            <Text style={[styles.cardSubtitle, { color: colors.muted }]}>
               {viewMode === 'qa'
                 ? 'Structured question and answer sequence'
                 : 'Condensed briefing notes and core discussion points'}
@@ -225,22 +291,66 @@ export default function TranscriptScreen({
               {formatted.qaBlocks.map((block: QABlock, index: number) => {
                 if (block.type === 'question_answer') {
                   return (
-                    <View key={block.id} style={styles.qaWrapper}>
+                    <View
+                      key={block.id}
+                      style={[
+                        styles.qaWrapper,
+                        {
+                          backgroundColor: colors.surfaceSubtle,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
                       {/* Question Line */}
-                      <View style={styles.questionCard}>
-                        <View style={styles.qBadge}>
-                          <Text style={styles.qBadgeText}>Q{index + 1}</Text>
+                      <View
+                        style={[
+                          styles.questionCard,
+                          {
+                            backgroundColor: colors.qCardBg,
+                            borderLeftColor: colors.accent,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.qBadge,
+                            { backgroundColor: colors.qBadgeBg },
+                          ]}
+                        >
+                          <Text style={[styles.qBadgeText, { color: colors.qBadgeText }]}>
+                            Q{index + 1}
+                          </Text>
                         </View>
-                        <Text style={styles.questionText}>{block.question}</Text>
+                        <Text style={[styles.questionText, { color: colors.text }]}>
+                          {block.question}
+                        </Text>
                       </View>
 
                       {/* Answer Line */}
                       {block.answer ? (
-                        <View style={styles.answerCard}>
-                          <View style={styles.aBadge}>
-                            <Text style={styles.aBadgeText}>A{index + 1}</Text>
+                        <View
+                          style={[
+                            styles.answerCard,
+                            {
+                              backgroundColor: colors.aCardBg,
+                              borderTopColor: colors.border,
+                              borderLeftColor: colors.success,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.aBadge,
+                              { backgroundColor: colors.aBadgeBg },
+                            ]}
+                          >
+                            <Text style={[styles.aBadgeText, { color: colors.aBadgeText }]}>
+                              A{index + 1}
+                            </Text>
                           </View>
-                          <Text style={styles.answerText}>{block.answer}</Text>
+                          <Text style={[styles.answerText, { color: colors.textSecondary }]}>
+                            {block.answer}
+                          </Text>
                         </View>
                       ) : null}
                     </View>
@@ -248,8 +358,19 @@ export default function TranscriptScreen({
                 }
 
                 return (
-                  <View key={block.id} style={styles.contextStatement}>
-                    <Text style={styles.contextStatementText}>{block.text}</Text>
+                  <View
+                    key={block.id}
+                    style={[
+                      styles.contextStatement,
+                      {
+                        backgroundColor: colors.surfaceSubtle,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.contextStatementText, { color: colors.muted }]}>
+                      {block.text}
+                    </Text>
                   </View>
                 );
               })}
@@ -258,8 +379,12 @@ export default function TranscriptScreen({
             <View style={styles.paragraphList}>
               {formatted.paragraphs.map((para, i) => (
                 <View key={i} style={styles.paragraphBox}>
-                  <View style={styles.paragraphBullet} />
-                  <Text style={styles.paragraphText}>{para}</Text>
+                  <View
+                    style={[styles.paragraphBullet, { backgroundColor: colors.accent }]}
+                  />
+                  <Text style={[styles.paragraphText, { color: colors.textSecondary }]}>
+                    {para}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -269,7 +394,7 @@ export default function TranscriptScreen({
         {/* Primary Action Controls */}
         <View style={styles.actionGroup}>
           <TouchableOpacity
-            style={styles.primaryPdfBtn}
+            style={[styles.primaryPdfBtn, { backgroundColor: colors.accent }]}
             onPress={handleExportPdf}
             activeOpacity={0.85}
             disabled={exportingPdf}
@@ -283,14 +408,24 @@ export default function TranscriptScreen({
 
           <View style={styles.secondaryActionRow}>
             <TouchableOpacity
-              style={[styles.secondaryBtn, copied && styles.secondaryBtnSuccess]}
+              style={[
+                styles.secondaryBtn,
+                {
+                  backgroundColor: colors.surfaceCard,
+                  borderColor: colors.border,
+                },
+                copied && {
+                  borderColor: colors.success,
+                  backgroundColor: colors.successBg,
+                },
+              ]}
               onPress={handleCopy}
               activeOpacity={0.8}
             >
               <Text
                 style={[
                   styles.secondaryBtnText,
-                  copied && styles.secondaryBtnTextSuccess,
+                  { color: copied ? colors.success : colors.textSecondary },
                 ]}
               >
                 {copied ? '✓ Copied!' : '📋 Copy Summary'}
@@ -299,11 +434,19 @@ export default function TranscriptScreen({
 
             {config.features.share_button && (
               <TouchableOpacity
-                style={styles.secondaryBtn}
+                style={[
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: colors.surfaceCard,
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={handleShare}
                 activeOpacity={0.8}
               >
-                <Text style={styles.secondaryBtnText}>↗️ Share</Text>
+                <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
+                  ↗️ Share
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -311,12 +454,16 @@ export default function TranscriptScreen({
 
         {/* Developer Footprint */}
         <View style={styles.developerFootprint}>
-          <View style={styles.footprintDivider} />
+          <View style={[styles.footprintDivider, { backgroundColor: colors.border }]} />
           <View style={styles.footprintRow}>
-            <View style={styles.footprintDot} />
-            <Text style={styles.footprintTitle}>Engineered by AeroTech</Text>
-            <Text style={styles.footprintBullet}>•</Text>
-            <Text style={styles.footprintVersion}>Meeting Timeline v1.0</Text>
+            <View style={[styles.footprintDot, { backgroundColor: colors.accent }]} />
+            <Text style={[styles.footprintTitle, { color: colors.accent }]}>
+              Engineered by AeroTech
+            </Text>
+            <Text style={[styles.footprintBullet, { color: colors.muted }]}>•</Text>
+            <Text style={[styles.footprintVersion, { color: colors.muted }]}>
+              Meeting Timeline v1.0
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -327,7 +474,6 @@ export default function TranscriptScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0C12',
   },
 
   /* Sticky Top Bar with Dynamic Insets */
@@ -335,16 +481,14 @@ const styles = StyleSheet.create({
     paddingTop: STATUSBAR_INSET + 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#0F131D',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 20,
-    elevation: 8,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
   },
   backBtn: {
@@ -357,13 +501,11 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 22,
-    color: '#60A5FA',
     fontWeight: 'bold',
     marginTop: -2,
   },
   backText: {
     fontSize: 14,
-    color: '#60A5FA',
     fontWeight: '600',
   },
   logoRow: {
@@ -375,29 +517,38 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: '#3B82F6',
-    shadowColor: '#3B82F6',
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
   },
   logoTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#F8FAFC',
     letterSpacing: -0.3,
   },
+
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  themeToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeToggleIcon: {
+    fontSize: 14,
+  },
   pdfQuickBtn: {
-    backgroundColor: '#1E293B',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.35)',
     minWidth: 46,
     alignItems: 'center',
   },
   pdfQuickBtnText: {
-    color: '#818CF8',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -412,10 +563,8 @@ const styles = StyleSheet.create({
   /* Stats Summary Bar */
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: '#121622',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
     paddingVertical: 12,
     paddingHorizontal: 8,
     marginBottom: 16,
@@ -429,11 +578,9 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#F1F5F9',
   },
   statSubtitle: {
     fontSize: 10,
-    color: '#94A3B8',
     textTransform: 'uppercase',
     fontWeight: '600',
     marginTop: 2,
@@ -442,16 +589,13 @@ const styles = StyleSheet.create({
   statSeparator: {
     width: 1,
     height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 
   /* Mode Selector */
   modeContainer: {
     flexDirection: 'row',
-    backgroundColor: '#121622',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
     padding: 4,
     marginBottom: 16,
   },
@@ -462,7 +606,6 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   modeButtonActive: {
-    backgroundColor: '#2563EB',
     shadowColor: '#2563EB',
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -470,49 +613,38 @@ const styles = StyleSheet.create({
   },
   modeButtonText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  modeButtonTextActive: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
 
   /* Presentation Viewport (Bounded Barrier Card) */
   presentationCard: {
-    backgroundColor: '#111520',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.22)',
     padding: 16,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 14,
-    elevation: 6,
+    elevation: 3,
   },
   cardHeader: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
     paddingBottom: 12,
     marginBottom: 16,
   },
   cardHeaderBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 5,
     marginBottom: 6,
   },
   cardHeaderBadgeText: {
-    color: '#60A5FA',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   cardSubtitle: {
-    color: '#64748B',
     fontSize: 12,
     lineHeight: 16,
   },
@@ -522,10 +654,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   qaWrapper: {
-    backgroundColor: '#161B28',
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
     overflow: 'hidden',
   },
   questionCard: {
@@ -533,25 +663,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     padding: 13,
-    backgroundColor: '#181E2E',
     borderLeftWidth: 3.5,
-    borderLeftColor: '#3B82F6',
   },
   qBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.25)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
     marginTop: 2,
   },
   qBadgeText: {
-    color: '#60A5FA',
     fontSize: 11,
     fontWeight: '800',
   },
   questionText: {
     flex: 1,
-    color: '#F8FAFC',
     fontSize: 14.5,
     fontWeight: '700',
     lineHeight: 21,
@@ -561,41 +686,32 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     padding: 13,
-    backgroundColor: '#121622',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.04)',
     borderLeftWidth: 3.5,
-    borderLeftColor: '#10B981',
   },
   aBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
     marginTop: 2,
   },
   aBadgeText: {
-    color: '#34D399',
     fontSize: 11,
     fontWeight: '800',
   },
   answerText: {
     flex: 1,
-    color: '#CBD5E1',
     fontSize: 13.5,
     fontWeight: '400',
     lineHeight: 21,
   },
   contextStatement: {
-    backgroundColor: '#0E1119',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   contextStatementText: {
-    color: '#94A3B8',
     fontSize: 13,
     lineHeight: 20,
   },
@@ -613,12 +729,10 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#3B82F6',
     marginTop: 8,
   },
   paragraphText: {
     flex: 1,
-    color: '#E2E8F0',
     fontSize: 14,
     lineHeight: 23,
     textAlign: 'left',
@@ -629,7 +743,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   primaryPdfBtn: {
-    backgroundColor: '#2563EB',
     borderRadius: 13,
     paddingVertical: 15,
     alignItems: 'center',
@@ -651,24 +764,14 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     flex: 1,
-    backgroundColor: '#161B26',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 11,
     paddingVertical: 13,
     alignItems: 'center',
   },
-  secondaryBtnSuccess: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
   secondaryBtnText: {
-    color: '#CBD5E1',
     fontSize: 13.5,
     fontWeight: '600',
-  },
-  secondaryBtnTextSuccess: {
-    color: '#34D399',
   },
 
   /* Developer Footprint */
@@ -679,7 +782,6 @@ const styles = StyleSheet.create({
   footprintDivider: {
     width: 60,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 12,
   },
   footprintRow: {
@@ -691,20 +793,16 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#3B82F6',
   },
   footprintTitle: {
-    color: '#60A5FA',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   footprintBullet: {
-    color: '#475569',
     fontSize: 10,
   },
   footprintVersion: {
-    color: '#64748B',
     fontSize: 11,
     fontWeight: '500',
   },

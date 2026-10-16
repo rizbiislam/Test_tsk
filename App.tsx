@@ -1,5 +1,5 @@
 /**
- * AeroTech — Root App
+ * Meeting Timeline — Root App
  *
  * Boot sequence:
  *  1. Fetch remote config (GitHub Gist, encrypted URL)
@@ -7,8 +7,7 @@
  *  3. Check gate conditions (disabled / maintenance / force_update)
  *  4. Show Home or Gate screen accordingly
  *
- * Screen navigation is handled via simple state (no heavy nav library needed
- * for a 2-screen app — keeps bundle lean and APK small).
+ * Supports dynamic Light/Dark mode with ThemeProvider.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -21,11 +20,12 @@ import { TranscriptResult } from './src/services/apiService';
 import GateScreen, { getGateReason } from './src/screens/GateScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import TranscriptScreen from './src/screens/TranscriptScreen';
-import { COLORS, FONTS } from './src/theme';
+import { ThemeProvider, useTheme, FONTS } from './src/theme';
 
 type Screen = 'loading' | 'gate' | 'home' | 'transcript';
 
-export default function App() {
+function MainApp() {
+  const { isDark, colors } = useTheme();
   const [screen, setScreen] = useState<Screen>('loading');
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [result, setResult] = useState<FormattedTranscript | null>(null);
@@ -37,7 +37,7 @@ export default function App() {
       const cfg = forceRefresh ? await refreshConfig() : await fetchConfig();
       setConfig(cfg);
 
-      // Silently warm up the backend
+      // Silently warm up the backend if configured
       pingBackend(cfg.api_base_url).catch(() => {});
 
       const gateReason = getGateReason(cfg);
@@ -68,14 +68,14 @@ export default function App() {
 
   if (screen === 'loading') {
     return (
-      <View style={styles.splash}>
-        <StatusBar style="light" />
+      <View style={[styles.splash, { backgroundColor: colors.bg }]}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <View style={styles.splashInner}>
           <View style={styles.splashLogo}>
-            <View style={styles.splashDot} />
-            <Text style={styles.splashText}>Meeting Timeline</Text>
+            <View style={[styles.splashDot, { backgroundColor: colors.accent }]} />
+            <Text style={[styles.splashText, { color: colors.text }]}>Meeting Timeline</Text>
           </View>
-          <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />
+          <ActivityIndicator color={colors.accent} size="large" style={{ marginTop: 40 }} />
         </View>
       </View>
     );
@@ -84,7 +84,7 @@ export default function App() {
   if (screen === 'gate' && config) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <GateScreen config={config} onRetry={() => boot(true)} />
       </>
     );
@@ -93,7 +93,7 @@ export default function App() {
   if (screen === 'transcript' && result && rawResult && config) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <TranscriptScreen
           formatted={result}
           raw={rawResult}
@@ -107,16 +107,23 @@ export default function App() {
   // Default: home screen
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {config && <HomeScreen config={config} onResult={handleResult} />}
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <MainApp />
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: COLORS.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -126,12 +133,10 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.accent,
   },
   splashText: {
     fontFamily: FONTS.bold,
-    fontSize: 32,
-    color: COLORS.text,
-    letterSpacing: 1,
+    fontSize: 28,
+    letterSpacing: 0.5,
   },
 });
