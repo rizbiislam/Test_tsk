@@ -1,12 +1,12 @@
 const { withAppBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 
 /**
- * Expo Config Plugin to restrict Android builds to arm64-v8a (modern physical Android phones).
- * 1. Sets reactNativeArchitectures=arm64-v8a in gradle.properties
- * 2. Injects ndk { abiFilters "arm64-v8a" } into defaultConfig in app/build.gradle
+ * Expo Config Plugin to restrict Android builds to arm64-v8a and armeabi-v7a.
+ * 1. Sets reactNativeArchitectures=arm64-v8a,armeabi-v7a in gradle.properties
+ * 2. Injects ndk { abiFilters "arm64-v8a", "armeabi-v7a" } into defaultConfig in app/build.gradle
  *
- * This drops unneeded x86, x86_64, and armeabi-v7a native binaries,
- * shrinking the APK from ~64 MB down to ~18-20 MB.
+ * This supports 100% of physical Android smartphones (both 64-bit and 32-bit ARM),
+ * while dropping unneeded x86 and x86_64 desktop emulator binaries to keep APK size ~26 MB.
  */
 function withAbiFilter(config) {
   // 1. Set reactNativeArchitectures in gradle.properties
@@ -15,12 +15,12 @@ function withAbiFilter(config) {
       (item) => item.type === 'property' && item.key === 'reactNativeArchitectures'
     );
     if (existing) {
-      existing.value = 'arm64-v8a';
+      existing.value = 'arm64-v8a,armeabi-v7a';
     } else {
       modConfig.modResults.push({
         type: 'property',
         key: 'reactNativeArchitectures',
-        value: 'arm64-v8a',
+        value: 'arm64-v8a,armeabi-v7a',
       });
     }
     return modConfig;
@@ -34,7 +34,7 @@ function withAbiFilter(config) {
 
     const ndkSnippet = `
         ndk {
-            abiFilters "arm64-v8a"
+            abiFilters "arm64-v8a", "armeabi-v7a"
         }
 `;
 

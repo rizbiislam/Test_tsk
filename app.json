@@ -15,6 +15,7 @@
     },
     "android": {
       "package": "com.aerotech.transcript",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0F1117",
         "foregroundImage": "./assets/android-icon-foreground.png"
@@ -36,7 +37,7 @@
         {
           "android": {
             "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": false,
             "enablePngCrunchInReleaseBuilds": true
           }
         }
