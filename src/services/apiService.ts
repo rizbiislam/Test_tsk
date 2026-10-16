@@ -190,7 +190,7 @@ async function extractDirectOnDevice(
     data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
   if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
-    throw new Error('No transcript or captions are available for this video.');
+    throw new Error('No spoken dialogue or captions are available for this video.');
   }
 
   // Select primary caption track (English preferred if present)
@@ -203,14 +203,14 @@ async function extractDirectOnDevice(
   });
 
   if (!capRes.ok) {
-    throw new Error('Failed to retrieve caption stream from YouTube.');
+    throw new Error('Failed to retrieve audio dialogue stream.');
   }
 
   const xml = await capRes.text();
   const entries = parseTranscriptXml(xml);
 
   if (entries.length === 0) {
-    throw new Error('No readable text found in captions.');
+    throw new Error('No readable dialogue found in the audio stream.');
   }
 
   // Query SponsorBlock intervals using endpoint defined in GitHub config

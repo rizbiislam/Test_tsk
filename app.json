@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AeroTech",
-    "slug": "aerotech-transcript",
+    "name": "Meeting Timeline",
+    "slug": "meeting-timeline",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -40,7 +40,8 @@
             "enablePngCrunchInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "owner": "aerotech.bd"
   }

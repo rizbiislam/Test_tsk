@@ -73,7 +73,7 @@ export default function App() {
         <View style={styles.splashInner}>
           <View style={styles.splashLogo}>
             <View style={styles.splashDot} />
-            <Text style={styles.splashText}>AeroTech</Text>
+            <Text style={styles.splashText}>Meeting Timeline</Text>
           </View>
           <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />
         </View>

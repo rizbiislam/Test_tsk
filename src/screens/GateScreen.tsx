@@ -83,7 +83,7 @@ export default function GateScreen({ config, onRetry }: GateScreenProps) {
         )}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>AeroTech © {new Date().getFullYear()}</Text>
+          <Text style={styles.footerText}>Meeting Timeline • Engineered by AeroTech</Text>
         </View>
       </View>
     </SafeAreaView>
