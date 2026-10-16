@@ -271,11 +271,11 @@ export default function HomeScreen({ config, onResult }: HomeScreenProps) {
             <View style={styles.footprintRow}>
               <View style={[styles.footprintDot, { backgroundColor: colors.accent }]} />
               <Text style={[styles.footprintTitle, { color: colors.accent }]}>
-                Engineered by AeroTech
+                {config.footprint}
               </Text>
               <Text style={[styles.footprintDivider, { color: colors.muted }]}>•</Text>
               <Text style={[styles.footprintSub, { color: colors.muted }]}>
-                Meeting Timeline v1.0
+                Meeting Timeline v{config.min_version || '1.0'}
               </Text>
             </View>
           </View>

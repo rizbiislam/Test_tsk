@@ -94,7 +94,7 @@ export default function GateScreen({ config, onRetry }: GateScreenProps) {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.muted }]}>
-            Meeting Timeline • Engineered by AeroTech
+            Meeting Timeline • {config.footprint}
           </Text>
         </View>
       </View>

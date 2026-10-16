@@ -30,7 +30,7 @@ import {
 import { FormattedTranscript, QABlock } from '../services/formatter';
 import { TranscriptResult } from '../services/apiService';
 import { AppConfig } from '../services/configService';
-import { exportReportAsPdf } from '../services/pdfService';
+import { exportReportAsPdf, shareReportAsPdf } from '../services/pdfService';
 import { useTheme, FONTS } from '../theme';
 
 const STATUSBAR_INSET = Platform.OS === 'android' ? (NativeStatusBar.currentHeight || 28) : 0;
@@ -68,6 +68,7 @@ export default function TranscriptScreen({
   const [viewMode, setViewMode] = useState<'qa' | 'paragraphs'>('qa');
   const [copied, setCopied] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [sharingPdf, setSharingPdf] = useState(false);
 
   const activeText =
     viewMode === 'qa' && formatted.qaFormattedText
@@ -82,7 +83,7 @@ export default function TranscriptScreen({
     }
   }
 
-  async function handleShare() {
+  async function handleShareText() {
     try {
       await Share.share({
         message: activeText,
@@ -97,11 +98,36 @@ export default function TranscriptScreen({
     if (exportingPdf) return;
     setExportingPdf(true);
     try {
-      await exportReportAsPdf(formatted, raw);
+      const res = await exportReportAsPdf(formatted, raw, config.footprint);
+      if (res.savedDirectly) {
+        Alert.alert(
+          'Saved to Storage ✅',
+          `Your executive report has been saved directly to device storage as:\n\n${res.filename}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Report Ready 📄',
+          `Your executive report has been generated:\n\n${res.filename}`,
+          [{ text: 'OK' }]
+        );
+      }
     } catch (e: any) {
-      Alert.alert('PDF Export Error', e?.message || 'Unable to generate PDF report.');
+      Alert.alert('Download Error', e?.message || 'Unable to save PDF report.');
     } finally {
       setExportingPdf(false);
+    }
+  }
+
+  async function handleSharePdf() {
+    if (sharingPdf) return;
+    setSharingPdf(true);
+    try {
+      await shareReportAsPdf(formatted, raw, config.footprint);
+    } catch (e: any) {
+      Alert.alert('Share Error', e?.message || 'Unable to share PDF.');
+    } finally {
+      setSharingPdf(false);
     }
   }
 
@@ -132,7 +158,7 @@ export default function TranscriptScreen({
           <TouchableOpacity
             onPress={toggleTheme}
             style={[
-              styles.themeToggleBtn,
+              styles.topActionBtn,
               {
                 backgroundColor: colors.surfaceSubtle,
                 borderColor: colors.border,
@@ -141,26 +167,50 @@ export default function TranscriptScreen({
             activeOpacity={0.8}
             accessibilityLabel="Switch color theme"
           >
-            <Text style={styles.themeToggleIcon}>{isDark ? '☀️' : '🌙'}</Text>
+            <Text style={styles.topActionIcon}>{isDark ? '☀️' : '🌙'}</Text>
           </TouchableOpacity>
 
-          {/* Quick PDF export button */}
+          {/* Quick Share PDF Button */}
+          <TouchableOpacity
+            onPress={handleSharePdf}
+            style={[
+              styles.topActionBtn,
+              {
+                backgroundColor: colors.surfaceSubtle,
+                borderColor: colors.border,
+              },
+            ]}
+            activeOpacity={0.8}
+            disabled={sharingPdf}
+            accessibilityLabel="Share PDF Report"
+          >
+            {sharingPdf ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : (
+              <Text style={styles.topActionIcon}>↗️</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Prominent Top Download Button */}
           <TouchableOpacity
             onPress={handleExportPdf}
             style={[
-              styles.pdfQuickBtn,
+              styles.topDownloadBtn,
               {
-                backgroundColor: colors.surfaceSubtle,
-                borderColor: colors.borderSubtle,
+                backgroundColor: colors.accent,
               },
             ]}
             activeOpacity={0.8}
             disabled={exportingPdf}
+            accessibilityLabel="Download PDF directly to storage"
           >
             {exportingPdf ? (
-              <ActivityIndicator size="small" color={colors.accent} />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={[styles.pdfQuickBtnText, { color: colors.accent }]}>PDF</Text>
+              <View style={styles.topDownloadBtnInner}>
+                <Text style={styles.topDownloadBtnIcon}>⬇️</Text>
+                <Text style={styles.topDownloadBtnText}>Save</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -402,7 +452,7 @@ export default function TranscriptScreen({
             {exportingPdf ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.primaryPdfBtnText}>📄 Download PDF Report</Text>
+              <Text style={styles.primaryPdfBtnText}>⬇️ Download PDF to Storage</Text>
             )}
           </TouchableOpacity>
 
@@ -441,11 +491,12 @@ export default function TranscriptScreen({
                     borderColor: colors.border,
                   },
                 ]}
-                onPress={handleShare}
+                onPress={handleSharePdf}
                 activeOpacity={0.8}
+                disabled={sharingPdf}
               >
                 <Text style={[styles.secondaryBtnText, { color: colors.textSecondary }]}>
-                  ↗️ Share
+                  {sharingPdf ? 'Preparing...' : '↗️ Share PDF'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -458,11 +509,11 @@ export default function TranscriptScreen({
           <View style={styles.footprintRow}>
             <View style={[styles.footprintDot, { backgroundColor: colors.accent }]} />
             <Text style={[styles.footprintTitle, { color: colors.accent }]}>
-              Engineered by AeroTech
+              {config.footprint}
             </Text>
             <Text style={[styles.footprintBullet, { color: colors.muted }]}>•</Text>
             <Text style={[styles.footprintVersion, { color: colors.muted }]}>
-              Meeting Timeline v1.0
+              Meeting Timeline v{config.min_version || '1.0'}
             </Text>
           </View>
         </View>
@@ -527,30 +578,46 @@ const styles = StyleSheet.create({
   topRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
-  themeToggleBtn: {
-    paddingHorizontal: 10,
+  topActionBtn: {
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 34,
+    height: 32,
   },
-  themeToggleIcon: {
+  topActionIcon: {
     fontSize: 14,
   },
-  pdfQuickBtn: {
-    paddingHorizontal: 12,
+  topDownloadBtn: {
+    paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
-    minWidth: 46,
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+    shadowColor: '#2563EB',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  pdfQuickBtnText: {
-    fontWeight: '700',
+  topDownloadBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  topDownloadBtnIcon: {
     fontSize: 12,
+  },
+  topDownloadBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.3,
   },
 
   /* Scrollable Content Container */

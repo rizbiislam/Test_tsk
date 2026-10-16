@@ -1,18 +1,14 @@
 /**
- * AeroTech — Transcript Formatter & Q&A Synthesizer
+ * Meeting Timeline — Timeline & Q&A Synthesizer (OOP Architecture)
  *
- * Converts raw transcript text into professional, readable output:
- *  1. Smart Question & Answer Detection (separates questions onto new lines with dedicated answers)
- *  2. Executive Paragraph Mode (clean grouped paragraphs)
- *  3. Normalizes punctuation, removes filler words & speech noise
- *  4. Computes statistics (word count, reading time, questions detected)
+ * Converts raw dialogue text into structured executive deliverables:
+ *  1. Smart Question & Answer Detection with Paired Responses
+ *  2. Executive Summary Paragraphs
+ *  3. Noise & Speech Artifact Filtering
+ *  4. Presentation Statistics Computation
+ *
+ * Developer: Rizbi Islam • AeroTech
  */
-
-const SENTENCE_ENDINGS = /([.!?])\s+(?=[A-Z0-9])/g;
-const FILLER_WORDS = /\b(uh|um|uh-huh|hmm|like|you know|i mean|basically|literally|actually|right\?|okay so|so uh|so um)\b,?\s*/gi;
-
-// Question starter keywords
-const QUESTION_STARTERS = /^(what|why|how|who|where|when|which|can|could|would|should|is|are|was|were|do|does|did|have|has|had|will|shall|may|might)\b/i;
 
 export interface QABlock {
   id: string;
@@ -34,175 +30,190 @@ export interface FormattedTranscript {
 }
 
 /**
- * Capitalizes first letter of a string.
+ * Object-Oriented Timeline & Dialogue Synthesizer
  */
-function capitalize(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+export class TimelineSynthesizer {
+  private static instance: TimelineSynthesizer | null = null;
 
-/**
- * Checks whether a sentence is a question based on punctuation or syntax.
- */
-function isQuestion(sentence: string): boolean {
-  const trimmed = sentence.trim();
-  if (trimmed.endsWith('?')) return true;
-  // If sentence starts with question interrogative and has reasonable length
-  if (QUESTION_STARTERS.test(trimmed)) {
-    const wordCount = trimmed.split(/\s+/).length;
-    // Typical question lengths in speech are 4 to 25 words
-    if (wordCount >= 3 && wordCount <= 30) {
-      return true;
+  private readonly sentenceDelimiters = /([.!?])\s+(?=[A-Z0-9])/g;
+  private readonly speechFillerPattern =
+    /\b(uh|um|uh-huh|hmm|like|you know|i mean|basically|literally|actually|right\?|okay so|so uh|so um)\b,?\s*/gi;
+  private readonly questionStarters =
+    /^(what|why|how|who|where|when|which|can|could|would|should|is|are|was|were|do|does|did|have|has|had|will|shall|may|might)\b/i;
+
+  public static getInstance(): TimelineSynthesizer {
+    if (!TimelineSynthesizer.instance) {
+      TimelineSynthesizer.instance = new TimelineSynthesizer();
     }
+    return TimelineSynthesizer.instance;
   }
-  return false;
-}
 
-/**
- * Splits normalized text into distinct sentences.
- */
-function splitIntoSentences(text: string): string[] {
-  // Replace sentence-ending punctuation followed by space+capital as delimiter
-  const marked = text.replace(SENTENCE_ENDINGS, '$1\n');
-  return marked
-    .split('\n')
-    .map(s => capitalize(s.trim()))
-    .filter(s => s.length > 3);
-}
-
-/**
- * Groups sentences into standard executive paragraph chunks.
- */
-function groupIntoParagraphs(sentences: string[], perParagraph = 4): string[] {
-  const paragraphs: string[] = [];
-  for (let i = 0; i < sentences.length; i += perParagraph) {
-    const chunk = sentences.slice(i, i + perParagraph);
-    paragraphs.push(chunk.join(' '));
+  public capitalize(str: string): string {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
-  return paragraphs;
-}
 
-/**
- * Detects Questions and organizes Question-then-Answer on separate lines.
- */
-function buildQABlocks(sentences: string[]): { blocks: QABlock[]; questionCount: number; formattedText: string } {
-  const blocks: QABlock[] = [];
-  let questionCount = 0;
-  let textOutputParts: string[] = [];
-
-  let i = 0;
-  let currentStatementBuffer: string[] = [];
-
-  const flushStatements = () => {
-    if (currentStatementBuffer.length > 0) {
-      const text = currentStatementBuffer.join(' ');
-      blocks.push({
-        id: `stmt-${blocks.length}`,
-        type: 'paragraph',
-        text,
-      });
-      textOutputParts.push(text);
-      currentStatementBuffer = [];
+  public isQuestion(sentence: string): boolean {
+    const trimmed = sentence.trim();
+    if (trimmed.endsWith('?')) return true;
+    if (this.questionStarters.test(trimmed)) {
+      const count = trimmed.split(/\s+/).length;
+      if (count >= 3 && count <= 30) {
+        return true;
+      }
     }
-  };
+    return false;
+  }
 
-  while (i < sentences.length) {
-    const sentence = sentences[i];
+  public splitIntoSentences(text: string): string[] {
+    const marked = text.replace(this.sentenceDelimiters, '$1\n');
+    return marked
+      .split('\n')
+      .map((s) => this.capitalize(s.trim()))
+      .filter((s) => s.length > 3);
+  }
 
-    if (isQuestion(sentence)) {
-      flushStatements();
-      questionCount++;
+  public groupIntoParagraphs(sentences: string[], perParagraph = 4): string[] {
+    const paragraphs: string[] = [];
+    for (let i = 0; i < sentences.length; i += perParagraph) {
+      const chunk = sentences.slice(i, i + perParagraph);
+      paragraphs.push(chunk.join(' '));
+    }
+    return paragraphs;
+  }
 
-      let questionText = sentence;
-      if (!questionText.endsWith('?')) {
-        questionText += '?';
+  public buildQABlocks(sentences: string[]): {
+    blocks: QABlock[];
+    questionCount: number;
+    formattedText: string;
+  } {
+    const blocks: QABlock[] = [];
+    let questionCount = 0;
+    const textOutputParts: string[] = [];
+
+    let i = 0;
+    let statementBuffer: string[] = [];
+
+    const flushStatements = () => {
+      if (statementBuffer.length > 0) {
+        const text = statementBuffer.join(' ');
+        blocks.push({
+          id: `stmt-${blocks.length}`,
+          type: 'paragraph',
+          text,
+        });
+        textOutputParts.push(text);
+        statementBuffer = [];
       }
+    };
 
-      // Collect subsequent sentences as the answer (up to 3 sentences or until next question)
-      const answerSentences: string[] = [];
-      let j = i + 1;
-      while (j < sentences.length && !isQuestion(sentences[j]) && answerSentences.length < 3) {
-        answerSentences.push(sentences[j]);
-        j++;
-      }
+    while (i < sentences.length) {
+      const sentence = sentences[i];
 
-      const answerText = answerSentences.join(' ');
-
-      blocks.push({
-        id: `qa-${blocks.length}`,
-        type: 'question_answer',
-        question: questionText,
-        answer: answerText || undefined,
-        text: answerText ? `Q: ${questionText}\nA: ${answerText}` : `Q: ${questionText}`,
-      });
-
-      if (answerText) {
-        textOutputParts.push(`Q: ${questionText}\nA: ${answerText}`);
-      } else {
-        textOutputParts.push(`Q: ${questionText}`);
-      }
-
-      i = j;
-    } else {
-      currentStatementBuffer.push(sentence);
-      if (currentStatementBuffer.length >= 4) {
+      if (this.isQuestion(sentence)) {
         flushStatements();
+        questionCount++;
+
+        let questionText = sentence;
+        if (!questionText.endsWith('?')) {
+          questionText += '?';
+        }
+
+        const answerSentences: string[] = [];
+        let j = i + 1;
+        while (
+          j < sentences.length &&
+          !this.isQuestion(sentences[j]) &&
+          answerSentences.length < 3
+        ) {
+          answerSentences.push(sentences[j]);
+          j++;
+        }
+
+        const answerText = answerSentences.join(' ');
+
+        blocks.push({
+          id: `qa-${blocks.length}`,
+          type: 'question_answer',
+          question: questionText,
+          answer: answerText || undefined,
+          text: answerText
+            ? `Q: ${questionText}\nA: ${answerText}`
+            : `Q: ${questionText}`,
+        });
+
+        if (answerText) {
+          textOutputParts.push(`Q: ${questionText}\nA: ${answerText}`);
+        } else {
+          textOutputParts.push(`Q: ${questionText}`);
+        }
+
+        i = j;
+      } else {
+        statementBuffer.push(sentence);
+        if (statementBuffer.length >= 4) {
+          flushStatements();
+        }
+        i++;
       }
-      i++;
     }
+
+    flushStatements();
+
+    return {
+      blocks,
+      questionCount,
+      formattedText: textOutputParts.join('\n\n'),
+    };
   }
 
-  flushStatements();
+  /**
+   * Main synthesis pipeline: Transforms raw transcript into presentation-grade deliverables.
+   */
+  public format(rawText: string, _serverQaText?: string): FormattedTranscript {
+    // 1. Whitespace & bracket normalization
+    let text = rawText
+      .replace(/\s+/g, ' ')
+      .replace(/\[.*?\]/g, '')
+      .replace(/\(.*?\)/g, '')
+      .trim();
 
-  return {
-    blocks,
-    questionCount,
-    formattedText: textOutputParts.join('\n\n'),
-  };
+    // 2. Remove verbal filler words
+    text = text.replace(this.speechFillerPattern, ' ').replace(/\s+/g, ' ').trim();
+
+    // 3. Sentence capitalization
+    text = this.capitalize(text);
+    if (text && !/[.!?]$/.test(text)) text += '.';
+
+    // 4. Sentence extraction
+    const sentences = this.splitIntoSentences(text);
+
+    // 5. Paragraph grouping
+    const paragraphs = this.groupIntoParagraphs(sentences, 4);
+
+    // 6. Q&A synthesis
+    const { blocks: qaBlocks, questionCount, formattedText: qaFormattedText } =
+      this.buildQABlocks(sentences);
+
+    // 7. Metrics calculation
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+    const charCount = text.length;
+
+    return {
+      paragraphs,
+      qaBlocks,
+      qaFormattedText,
+      questionCount,
+      wordCount,
+      readTimeMinutes,
+      charCount,
+      rawText,
+    };
+  }
 }
 
-/**
- * Main formatter — takes raw transcript text, returns structured output with Q&A flow.
- */
-export function formatTranscript(rawText: string, serverQaText?: string): FormattedTranscript {
-  // Step 1: Basic normalization
-  let text = rawText
-    .replace(/\s+/g, ' ')            // collapse whitespace
-    .replace(/\[.*?\]/g, '')          // remove [Music], [Applause] etc
-    .replace(/\(.*?\)/g, '')          // remove (inaudible) etc
-    .trim();
-
-  // Step 2: Remove filler words for executive-facing output
-  text = text.replace(FILLER_WORDS, ' ').replace(/\s+/g, ' ').trim();
-
-  // Step 3: Capitalize the beginning
-  text = capitalize(text);
-
-  // Step 4: Add period at end if missing
-  if (text && !/[.!?]$/.test(text)) text += '.';
-
-  // Step 5: Split into sentences
-  const sentences = splitIntoSentences(text);
-
-  // Step 6: Group into standard paragraphs
-  const paragraphs = groupIntoParagraphs(sentences, 4);
-
-  // Step 7: Build Question-and-Answer structure
-  const { blocks: qaBlocks, questionCount, formattedText: qaFormattedText } = buildQABlocks(sentences);
-
-  // Step 8: Compute statistics
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
-  const charCount = text.length;
-
-  return {
-    paragraphs,
-    qaBlocks,
-    qaFormattedText: serverQaText || qaFormattedText,
-    questionCount,
-    wordCount,
-    readTimeMinutes,
-    charCount,
-    rawText: text,
-  };
-}
+// ── Backwards Compatibility Export ──────────────────────────────────────────
+export const timelineSynthesizer = TimelineSynthesizer.getInstance();
+export const formatTranscript = (rawText: string, serverQaText?: string) =>
+  timelineSynthesizer.format(rawText, serverQaText);

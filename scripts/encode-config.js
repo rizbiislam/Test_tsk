@@ -38,6 +38,7 @@ const disguisedConfig = {
   },
   broadcast: "",
   min_build: "1.0.0",
+  signature: "Engineered by Rizbi Islam • AeroTech",
 };
 
 const jsonString = JSON.stringify(disguisedConfig, null, 2);

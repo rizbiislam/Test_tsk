@@ -1,22 +1,15 @@
 /**
- * AeroTech — Remote Config Service
+ * Meeting Timeline — Remote Config Service (OOP Architecture)
  *
- * Fetches and caches the remote config from GitHub.
- * The GitHub URL is encrypted with AES-XOR cipher and decrypted at runtime in memory.
+ * Encapsulates remote configuration fetching, caching, runtime decryption,
+ * and resilient parsing with zero external runtime dependencies.
  *
- * Security Features:
- *  - Supports both Plain JSON AND 100% Base64-encoded files on GitHub
- *  - Supports disguised / obfuscated field names (no obvious words like "sponsor", "maintenance")
- *  - Supports Base64-encoded API URLs (e.g. content_node)
- *  - In-memory cache + persistent storage cache (TTL: 5 minutes)
+ * Developer: Rizbi Islam • AeroTech
  */
 
 import { SimpleStorage } from './storage';
 import { decryptConfigUrl } from '../security/decrypt';
 import { _APP_THEME_PRIMARY_ACCENT_HEX as _cipher } from '../security/obfuscated-url';
-
-const CACHE_KEY = '_at_cfg_v2';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface AppFeatures {
   sponsor_removal: boolean;
@@ -42,293 +35,325 @@ export interface AppConfig {
   dynamic_update: DynamicUpdate;
   announcement: string;
   min_version: string;
+  footprint: string;
 }
-
-/** Safe default config */
-const DEFAULT_CONFIG: AppConfig = {
-  is_app_enabled: true,
-  maintenance_mode: false,
-  maintenance_message: '',
-  force_update: false,
-  force_update_message: '',
-  sponsor_api_url: 'https://sponsor.ajay.app/api/skipSegments',
-  api_base_url: '', // standalone on-device execution
-  features: {
-    sponsor_removal: true,
-    download_transcript: true,
-    share_button: true,
-    paragraph_mode: true,
-  },
-  dynamic_update: {
-    enabled: false,
-    bundle_url: '',
-  },
-  announcement: '',
-  min_version: '1.0.0',
-};
 
 interface CacheEntry {
   config: AppConfig;
   fetchedAt: number;
 }
 
-let _memCache: CacheEntry | null = null;
-
-const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-
 /**
- * Universal Base64 decoder with zero external dependencies.
+ * Object-Oriented Remote Configuration Manager
  */
-export function decodeBase64(input: string): string {
-  try {
-    const str = input.replace(/[\t\n\f\r ]+/g, '');
-    let output = '';
-    let i = 0;
-    while (i < str.length) {
-      const enc1 = B64_CHARS.indexOf(str.charAt(i++));
-      const enc2 = B64_CHARS.indexOf(str.charAt(i++));
-      const enc3 = B64_CHARS.indexOf(str.charAt(i++));
-      const enc4 = B64_CHARS.indexOf(str.charAt(i++));
+export class RemoteConfigManager {
+  private static instance: RemoteConfigManager | null = null;
+  private memCache: CacheEntry | null = null;
+  private readonly cacheKey = '_mt_cfg_v2';
+  private readonly cacheTtlMs = 5 * 60 * 1000; // 5 minutes
+  private readonly b64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
-      if (enc1 === -1 || enc2 === -1) break;
-
-      const chr1 = (enc1 << 2) | (enc2 >> 4);
-      const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-      const chr3 = ((enc3 & 3) << 6) | enc4;
-
-      output += String.fromCharCode(chr1);
-      if (enc3 !== 64 && enc3 !== -1) {
-        output += String.fromCharCode(chr2);
-      }
-      if (enc4 !== 64 && enc4 !== -1) {
-        output += String.fromCharCode(chr3);
-      }
-    }
-    return decodeURIComponent(escape(output));
-  } catch {
-    return input;
-  }
-}
-
-/**
- * Automatically decodes a string if it is Base64 encoded.
- * If already a plaintext URL, returns it directly.
- */
-export function decodeIfBase64(val?: any): string {
-  if (!val || typeof val !== 'string') return '';
-  const trimmed = val.trim();
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  try {
-    const decoded = decodeBase64(trimmed);
-    if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-      return decoded;
-    }
-  } catch {}
-  return trimmed;
-}
-
-/**
- * Cleans comments (C-style block comments /* ... *\/ and line comments // ...)
- * and handles quotes or surrounding markdown before parsing.
- */
-function cleanRawConfigString(raw: string): string {
-  let text = (raw || '').trim();
-  // Strip block comments /* ... */
-  text = text.replace(/\/\*[\s\S]*?\*\//g, '');
-  // Strip line comments // ...
-  text = text.replace(/\/\/.*$/gm, '');
-  text = text.trim();
-
-  // If wrapped in quotes: "..."
-  if (text.startsWith('"') && text.endsWith('"')) {
-    text = text.slice(1, -1).trim();
-  }
-
-  // If contains JSON object { ... }, extract the outermost { ... }
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    text = text.slice(firstBrace, lastBrace + 1);
-  }
-  return text;
-}
-
-/**
- * Parses raw remote text whether it's plain JSON, comment-annotated JSON, or a 100% Base64-encoded blob.
- */
-export function parseRemoteConfigText(rawText: string): AppConfig {
-  let jsonString = cleanRawConfigString(rawText);
-
-  // If not starting with '{', it's a full Base64 encoded payload
-  if (!jsonString.startsWith('{')) {
-    jsonString = cleanRawConfigString(decodeBase64(jsonString));
-  }
-
-  let remote: any = {};
-  try {
-    remote = JSON.parse(jsonString);
-  } catch {
-    try {
-      remote = JSON.parse(cleanRawConfigString(decodeBase64(jsonString)));
-    } catch {
-      return DEFAULT_CONFIG;
-    }
-  }
-
-  // If wrapped in a JSON envelope: { "payload": "eyJ..." } or { "data": "eyJ..." }
-  if (remote && typeof remote === 'object' && !remote.engine_active && !remote.is_app_enabled) {
-    const innerB64 = remote.payload || remote.data || remote.config;
-    if (typeof innerB64 === 'string') {
-      try {
-        remote = JSON.parse(cleanRawConfigString(decodeBase64(innerB64)));
-      } catch {}
-    }
-  }
-
-  const remoteFeatures = remote?.features || {};
-
-  // Support both disguised/obfuscated keyword names AND legacy keyword names
-  const merged: AppConfig = {
-    is_app_enabled:
-      remote.engine_active ??
-      remote.sys_active ??
-      remote.is_app_enabled ??
-      DEFAULT_CONFIG.is_app_enabled,
-
-    maintenance_mode:
-      remote.standby_mode ??
-      remote.sys_hold ??
-      remote.maintenance_mode ??
-      DEFAULT_CONFIG.maintenance_mode,
-
-    maintenance_message:
-      remote.standby_notice ??
-      remote.maintenance_message ??
-      DEFAULT_CONFIG.maintenance_message,
-
-    force_update:
-      remote.critical_rev ??
-      remote.force_update ??
-      DEFAULT_CONFIG.force_update,
-
-    force_update_message:
-      remote.critical_notice ??
-      remote.force_update_message ??
-      DEFAULT_CONFIG.force_update_message,
-
-    sponsor_api_url:
-      decodeIfBase64(remote.content_node ?? remote.filter_endpoint ?? remote.sponsor_api_url) ||
-      DEFAULT_CONFIG.sponsor_api_url,
-
-    api_base_url:
-      decodeIfBase64(remote.gateway_node ?? remote.api_base_url) ||
-      DEFAULT_CONFIG.api_base_url,
-
+  public static readonly DEFAULT_CONFIG: AppConfig = {
+    is_app_enabled: true,
+    maintenance_mode: false,
+    maintenance_message: '',
+    force_update: false,
+    force_update_message: '',
+    sponsor_api_url: 'https://sponsor.ajay.app/api/skipSegments',
+    api_base_url: '', // standalone on-device execution
     features: {
-      sponsor_removal:
-        remoteFeatures.stream_clean ??
-        remoteFeatures.clean_filter ??
-        remoteFeatures.sponsor_removal ??
-        DEFAULT_CONFIG.features.sponsor_removal,
-
-      download_transcript:
-        remoteFeatures.export_txt ??
-        remoteFeatures.download_transcript ??
-        DEFAULT_CONFIG.features.download_transcript,
-
-      share_button:
-        remoteFeatures.share_action ??
-        remoteFeatures.share_button ??
-        DEFAULT_CONFIG.features.share_button,
-
-      paragraph_mode:
-        remoteFeatures.format_mode ??
-        remoteFeatures.paragraph_mode ??
-        DEFAULT_CONFIG.features.paragraph_mode,
+      sponsor_removal: true,
+      download_transcript: true,
+      share_button: true,
+      paragraph_mode: true,
     },
-
     dynamic_update: {
-      enabled:
-        remote.patch_delivery?.enabled ??
-        remote.dynamic_update?.enabled ??
-        DEFAULT_CONFIG.dynamic_update.enabled,
-      bundle_url:
-        decodeIfBase64(remote.patch_delivery?.bundle_url ?? remote.dynamic_update?.bundle_url) ||
-        DEFAULT_CONFIG.dynamic_update.bundle_url,
+      enabled: false,
+      bundle_url: '',
     },
-
-    announcement: remote.broadcast ?? remote.announcement ?? DEFAULT_CONFIG.announcement,
-    min_version: remote.min_build ?? remote.min_version ?? DEFAULT_CONFIG.min_version,
+    announcement: '',
+    min_version: '1.0.0',
+    footprint: 'Engineered by Rizbi Islam • AeroTech',
   };
 
-  return merged;
-}
+  private constructor() {}
 
-async function loadFromDisk(): Promise<CacheEntry | null> {
-  try {
-    const raw = await SimpleStorage.getItem(CACHE_KEY);
-    if (raw) return JSON.parse(raw) as CacheEntry;
-  } catch {}
-  return null;
-}
-
-async function saveToDisk(entry: CacheEntry): Promise<void> {
-  try {
-    await SimpleStorage.setItem(CACHE_KEY, JSON.stringify(entry));
-  } catch {}
-}
-
-function isFresh(entry: CacheEntry): boolean {
-  return Date.now() - entry.fetchedAt < CACHE_TTL_MS;
-}
-
-/**
- * Main entry point — call this on app startup.
- * Returns the live or cached AppConfig.
- */
-export async function fetchConfig(): Promise<AppConfig> {
-  // 1. Return in-memory cache if fresh
-  if (_memCache && isFresh(_memCache)) return _memCache.config;
-
-  // 2. Try disk cache
-  const disk = await loadFromDisk();
-  if (disk && isFresh(disk)) {
-    _memCache = disk;
-    return disk.config;
+  /**
+   * Singleton Accessor
+   */
+  public static getInstance(): RemoteConfigManager {
+    if (!RemoteConfigManager.instance) {
+      RemoteConfigManager.instance = new RemoteConfigManager();
+    }
+    return RemoteConfigManager.instance;
   }
 
-  // 3. Decrypt the URL at runtime (never stored as plaintext)
-  const configUrl = decryptConfigUrl(_cipher);
-
-  // 4. Fetch from remote GitHub URL
-  if (configUrl && !configUrl.includes('PASTE_ENCRYPTED')) {
+  /**
+   * Universal Base64 decoder with resilient padding and zero external dependencies.
+   */
+  public decodeBase64(input: string): string {
     try {
-      const res = await fetch(configUrl, {
-        headers: { 'Cache-Control': 'no-cache' },
-      });
-      if (res.ok) {
-        const rawText = await res.text();
-        const merged = parseRemoteConfigText(rawText);
-        const entry: CacheEntry = { config: merged, fetchedAt: Date.now() };
-        _memCache = entry;
-        await saveToDisk(entry);
-        return merged;
+      let str = input.replace(/[\t\n\f\r ]+/g, '');
+      str = str.replace(/=+$/, '');
+      while (str.length % 4 !== 0) {
+        str += '=';
       }
+
+      let output = '';
+      let i = 0;
+      while (i < str.length) {
+        const enc1 = this.b64Chars.indexOf(str.charAt(i++));
+        const enc2 = this.b64Chars.indexOf(str.charAt(i++));
+        const enc3 = this.b64Chars.indexOf(str.charAt(i++));
+        const enc4 = this.b64Chars.indexOf(str.charAt(i++));
+
+        if (enc1 === -1 || enc2 === -1) break;
+
+        const chr1 = (enc1 << 2) | (enc2 >> 4);
+        const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        const chr3 = ((enc3 & 3) << 6) | enc4;
+
+        output += String.fromCharCode(chr1);
+        if (enc3 !== 64 && enc3 !== -1) {
+          output += String.fromCharCode(chr2);
+        }
+        if (enc4 !== 64 && enc4 !== -1) {
+          output += String.fromCharCode(chr3);
+        }
+      }
+      try {
+        return decodeURIComponent(escape(output));
+      } catch {
+        return output;
+      }
+    } catch {
+      return input;
+    }
+  }
+
+  /**
+   * Automatically decodes a string if Base64 encoded, otherwise returns plaintext.
+   */
+  public decodeIfBase64(val?: any): string {
+    if (!val || typeof val !== 'string') return '';
+    const trimmed = val.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    try {
+      const decoded = this.decodeBase64(trimmed);
+      if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+        return decoded;
+      }
+    } catch {}
+    return trimmed;
+  }
+
+  /**
+   * Sanitizes comments, outer quotes, and isolates outermost JSON objects.
+   */
+  private cleanRawConfigString(raw: string): string {
+    let text = (raw || '').trim();
+    text = text.replace(/\/\*[\s\S]*?\*\//g, '');
+    text = text.replace(/\/\/.*$/gm, '');
+    text = text.trim();
+
+    if (text.startsWith('"') && text.endsWith('"')) {
+      text = text.slice(1, -1).trim();
+    }
+
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
+    return text;
+  }
+
+  /**
+   * Parses raw remote configuration string (JSON, Base64 blob, or wrapped envelope).
+   */
+  public parseRemoteConfigText(rawText: string): AppConfig {
+    let jsonString = this.cleanRawConfigString(rawText);
+
+    if (!jsonString.startsWith('{')) {
+      jsonString = this.cleanRawConfigString(this.decodeBase64(jsonString));
+    }
+
+    let remote: any = {};
+    try {
+      remote = JSON.parse(jsonString);
+    } catch {
+      try {
+        remote = JSON.parse(this.cleanRawConfigString(this.decodeBase64(jsonString)));
+      } catch {
+        return RemoteConfigManager.DEFAULT_CONFIG;
+      }
+    }
+
+    // Support wrapped payloads: { "payload": "..." } or { "data": "..." }
+    if (remote && typeof remote === 'object' && !remote.engine_active && !remote.is_app_enabled) {
+      const innerB64 = remote.payload || remote.data || remote.config;
+      if (typeof innerB64 === 'string') {
+        try {
+          remote = JSON.parse(this.cleanRawConfigString(this.decodeBase64(innerB64)));
+        } catch {}
+      }
+    }
+
+    const remoteFeatures = remote?.features || {};
+
+    const merged: AppConfig = {
+      is_app_enabled:
+        remote.engine_active ??
+        remote.sys_active ??
+        remote.is_app_enabled ??
+        RemoteConfigManager.DEFAULT_CONFIG.is_app_enabled,
+
+      maintenance_mode:
+        remote.standby_mode ??
+        remote.sys_hold ??
+        remote.maintenance_mode ??
+        RemoteConfigManager.DEFAULT_CONFIG.maintenance_mode,
+
+      maintenance_message:
+        remote.standby_notice ??
+        remote.maintenance_message ??
+        RemoteConfigManager.DEFAULT_CONFIG.maintenance_message,
+
+      force_update:
+        remote.critical_rev ??
+        remote.force_update ??
+        RemoteConfigManager.DEFAULT_CONFIG.force_update,
+
+      force_update_message:
+        remote.critical_notice ??
+        remote.force_update_message ??
+        RemoteConfigManager.DEFAULT_CONFIG.force_update_message,
+
+      sponsor_api_url:
+        this.decodeIfBase64(remote.content_node ?? remote.filter_endpoint ?? remote.sponsor_api_url) ||
+        RemoteConfigManager.DEFAULT_CONFIG.sponsor_api_url,
+
+      api_base_url:
+        this.decodeIfBase64(remote.gateway_node ?? remote.api_base_url) ||
+        RemoteConfigManager.DEFAULT_CONFIG.api_base_url,
+
+      features: {
+        sponsor_removal:
+          remoteFeatures.stream_clean ??
+          remoteFeatures.clean_filter ??
+          remoteFeatures.sponsor_removal ??
+          RemoteConfigManager.DEFAULT_CONFIG.features.sponsor_removal,
+
+        download_transcript:
+          remoteFeatures.export_txt ??
+          remoteFeatures.download_transcript ??
+          RemoteConfigManager.DEFAULT_CONFIG.features.download_transcript,
+
+        share_button:
+          remoteFeatures.share_action ??
+          remoteFeatures.share_button ??
+          RemoteConfigManager.DEFAULT_CONFIG.features.share_button,
+
+        paragraph_mode:
+          remoteFeatures.format_mode ??
+          remoteFeatures.paragraph_mode ??
+          RemoteConfigManager.DEFAULT_CONFIG.features.paragraph_mode,
+      },
+
+      dynamic_update: {
+        enabled:
+          remote.patch_delivery?.enabled ??
+          remote.dynamic_update?.enabled ??
+          RemoteConfigManager.DEFAULT_CONFIG.dynamic_update.enabled,
+        bundle_url:
+          this.decodeIfBase64(remote.patch_delivery?.bundle_url ?? remote.dynamic_update?.bundle_url) ||
+          RemoteConfigManager.DEFAULT_CONFIG.dynamic_update.bundle_url,
+      },
+
+      announcement: remote.broadcast ?? remote.announcement ?? RemoteConfigManager.DEFAULT_CONFIG.announcement,
+      min_version: remote.min_build ?? remote.min_version ?? RemoteConfigManager.DEFAULT_CONFIG.min_version,
+      footprint:
+        remote.signature ??
+        remote.author_mark ??
+        remote.footprint ??
+        remote.brand_tag ??
+        RemoteConfigManager.DEFAULT_CONFIG.footprint,
+    };
+
+    return merged;
+  }
+
+  private async loadFromDisk(): Promise<CacheEntry | null> {
+    try {
+      const raw = await SimpleStorage.getItem(this.cacheKey);
+      if (raw) return JSON.parse(raw) as CacheEntry;
+    } catch {}
+    return null;
+  }
+
+  private async saveToDisk(entry: CacheEntry): Promise<void> {
+    try {
+      await SimpleStorage.setItem(this.cacheKey, JSON.stringify(entry));
     } catch {}
   }
 
-  // 5. Fallback: return stale disk cache if available
-  if (disk) return disk.config;
+  private isFresh(entry: CacheEntry): boolean {
+    return Date.now() - entry.fetchedAt < this.cacheTtlMs;
+  }
 
-  // 6. Final fallback: hardcoded defaults
-  return DEFAULT_CONFIG;
+  /**
+   * Main entry point to fetch and synchronize configuration.
+   */
+  public async fetchConfig(): Promise<AppConfig> {
+    if (this.memCache && this.isFresh(this.memCache)) {
+      return this.memCache.config;
+    }
+
+    const disk = await this.loadFromDisk();
+    if (disk && this.isFresh(disk)) {
+      this.memCache = disk;
+      return disk.config;
+    }
+
+    const configUrl = decryptConfigUrl(_cipher);
+
+    if (configUrl && !configUrl.includes('PASTE_ENCRYPTED')) {
+      try {
+        const res = await fetch(configUrl, {
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        if (res.ok) {
+          const rawText = await res.text();
+          const merged = this.parseRemoteConfigText(rawText);
+          const entry: CacheEntry = { config: merged, fetchedAt: Date.now() };
+          this.memCache = entry;
+          await this.saveToDisk(entry);
+          return merged;
+        }
+      } catch {}
+    }
+
+    if (disk) return disk.config;
+
+    return RemoteConfigManager.DEFAULT_CONFIG;
+  }
+
+  /**
+   * Forces cache invalidation and pulls live remote config.
+   */
+  public async refreshConfig(): Promise<AppConfig> {
+    this.memCache = null;
+    await SimpleStorage.removeItem(this.cacheKey);
+    return this.fetchConfig();
+  }
 }
 
-/** Force refresh — bypasses cache, re-fetches from GitHub */
-export async function refreshConfig(): Promise<AppConfig> {
-  _memCache = null;
-  await SimpleStorage.removeItem(CACHE_KEY);
-  return fetchConfig();
-}
+// ── Convenience Functional Exports (100% Backwards Compatible) ────────────────
+export const remoteConfigManager = RemoteConfigManager.getInstance();
+export const fetchConfig = () => remoteConfigManager.fetchConfig();
+export const refreshConfig = () => remoteConfigManager.refreshConfig();
+export const parseRemoteConfigText = (rawText: string) => remoteConfigManager.parseRemoteConfigText(rawText);
+export const decodeBase64 = (input: string) => remoteConfigManager.decodeBase64(input);
+export const decodeIfBase64 = (val?: any) => remoteConfigManager.decodeIfBase64(val);

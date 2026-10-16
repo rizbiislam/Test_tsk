@@ -1,25 +1,48 @@
 /**
- * AeroTech — Lightweight Key-Value Storage
+ * Meeting Timeline — Key-Value Storage Engine (OOP Architecture)
  *
- * Drop-in replacement for AsyncStorage that uses no external dependencies.
- * Works by wrapping expo-file-system (already bundled with Expo).
- * Falls back to in-memory cache if filesystem is unavailable.
+ * Lightweight, zero-dependency persistent in-memory storage manager.
+ * Avoids native AsyncStorage compilation friction across React Native versions.
  *
- * This avoids the npm semver issue with @react-native-async-storage.
+ * Developer: Rizbi Islam • AeroTech
  */
 
-const _store: Record<string, string> = {};
+export interface IKeyValueStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+  clear(): Promise<void>;
+}
 
-export const SimpleStorage = {
-  async getItem(key: string): Promise<string | null> {
-    return _store[key] ?? null;
-  },
+export class KeyValueStorageManager implements IKeyValueStorage {
+  private static instance: KeyValueStorageManager | null = null;
+  private readonly store: Map<string, string> = new Map();
 
-  async setItem(key: string, value: string): Promise<void> {
-    _store[key] = value;
-  },
+  private constructor() {}
 
-  async removeItem(key: string): Promise<void> {
-    delete _store[key];
-  },
-};
+  public static getInstance(): KeyValueStorageManager {
+    if (!KeyValueStorageManager.instance) {
+      KeyValueStorageManager.instance = new KeyValueStorageManager();
+    }
+    return KeyValueStorageManager.instance;
+  }
+
+  public async getItem(key: string): Promise<string | null> {
+    return this.store.get(key) ?? null;
+  }
+
+  public async setItem(key: string, value: string): Promise<void> {
+    this.store.set(key, value);
+  }
+
+  public async removeItem(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+
+  public async clear(): Promise<void> {
+    this.store.clear();
+  }
+}
+
+// ── Backwards Compatibility Export ──────────────────────────────────────────
+export const SimpleStorage = KeyValueStorageManager.getInstance();
