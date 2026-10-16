@@ -1,40 +1,49 @@
-name: Build AeroTech APK
+name: AeroTech CI/CD
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # also allows manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Select Action'
+        required: true
+        default: 'apk-build'
+        type: choice
+        options:
+          - 'apk-build'
+          - 'ota-update'
 
 jobs:
-  build-apk:
-    name: Build Android APK (Free EAS)
+  build:
+    name: AeroTech Cloud Automation
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
 
-      - name: Install dependencies
-        working-directory: mobile
+      - name: 📦 Install dependencies
         run: npm ci
 
-      - name: Setup Expo & EAS CLI
-        run: npm install -g eas-cli expo-cli
+      - name: 🚀 Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK (EAS Free Tier)
-        working-directory: mobile
-        run: eas build --platform android --profile preview --non-interactive --no-wait
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Note
+      - name: 📱 Execute Action
         run: |
-          echo "APK build queued on EAS free tier."
-          echo "Download from: https://expo.dev/accounts/YOUR_EXPO_USERNAME/projects/aerotech-transcript/builds"
+          if [ "${{ github.event.inputs.build_type }}" = "ota-update" ]; then
+            echo "Publishing Over-The-Air (OTA) update (uses 0 EAS builds)..."
+            npx eas-cli update --branch preview --auto --non-interactive
+          else
+            echo "Starting cloud APK build..."
+            npx eas-cli build --platform android --profile preview --non-interactive --no-wait
+          fi
