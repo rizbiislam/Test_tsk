@@ -1,0 +1,20 @@
+{
+  "is_app_enabled": true,
+  "maintenance_mode": false,
+  "maintenance_message": "We'll be back shortly. Thanks for your patience.",
+  "force_update": false,
+  "force_update_message": "A critical update is required. Please update the app.",
+  "api_base_url": "http://127.0.0.1:8000",
+  "features": {
+    "sponsor_removal": true,
+    "download_transcript": true,
+    "share_button": true,
+    "paragraph_mode": true
+  },
+  "dynamic_update": {
+    "enabled": false,
+    "bundle_url": ""
+  },
+  "announcement": "",
+  "min_version": "1.0.0"
+}
